@@ -31,6 +31,26 @@ export class Utils {
 
     return data
   }
+
+  removeHead(data: any) {
+    data = data.replace(
+      '<p class="teiHead">',
+      '<p class="teiHead" style="display: none;">'
+    )
+    return data
+  }
+
+  formatArrayValue(arr: string[], delimiter: string = ', '): any {
+    if (arr == null) {
+      return ''
+    }
+    if (arr.length === 1) {
+      return arr[0]
+    } else {
+      const value: string = arr.join(delimiter)
+      return value
+    }
+  }
 }
 
 export default (_: any, inject: any) => {

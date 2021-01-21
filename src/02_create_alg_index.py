@@ -2,6 +2,35 @@ from bs4 import BeautifulSoup
 import json
 import glob
 
+import numpy as np
+from janome.tokenizer import Tokenizer
+from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.feature_extraction.text import TfidfVectorizer
+
+import resource
+resource.setrlimit(resource.RLIMIT_NOFILE, (8192, 9223372036854775807))
+
+#わかち書き関数
+def wakachi(text):
+    
+    t = Tokenizer()
+    tokens = t.tokenize(text)
+    docs=[]
+    for token in tokens:
+        docs.append(token.surface)
+    return docs
+ 
+#文書ベクトル化関数
+def vecs_array(documents):
+    
+ 
+    docs = np.array(documents)
+    vectorizer = TfidfVectorizer(analyzer=wakachi,binary=True,use_idf=False)
+    vecs = vectorizer.fit_transform(docs)
+    return vecs.toarray()
+
+
+
 def getDate(entry):
     dates = entry.find("head").find_all("date")
     
@@ -78,6 +107,68 @@ def addYears(years, yearAndMonth):
 
     return years
 
+def getSims(files):
+
+    docs = []
+    ids = []
+
+    for j in range(len(files)):
+        file = files[j]
+
+        soup = BeautifulSoup(open(file,'r'), "xml")
+        group = soup.find("group")
+        texts = group.find_all("text")
+
+        for text in texts:
+            entries = text.find_all(type="diary-entry")
+
+            for i in range(len(entries)):
+                entry = entries[i]
+                head = entry.find("head")
+
+                if head:
+                    id = entry.get("xml:id")
+                    text2 = entry.text
+
+                    ids.append(id)
+                    docs.append(text2)
+
+                break
+
+            
+
+        if j > 10:
+            break
+
+    print(len(docs), 1)
+    arr = vecs_array(docs)
+
+    print(len(docs), 2)
+    #類似度行列作成
+    cs_array = np.round(cosine_similarity(arr, arr),3)
+
+    size = 20
+
+    sims = {}
+
+    for i in range(len(cs_array)):
+        id = ids[i]
+        row = cs_array[i]
+        arr = sorted(range(len(row)), key=lambda k: row[k], reverse=True)
+
+        texts = []
+
+        for j in range(0, 1 + size):
+            index = arr[j]
+            id2 = ids[index]
+
+            if id != id2:
+                texts.append(id2)
+
+        sims[id] = texts
+
+    return sims
+
 files = glob.glob("data/*.xml")
 
 # files = ["data/DKB01_20210113.xml"]
@@ -87,6 +178,8 @@ titles = ["01 渋沢栄一伝記資料. 別巻第1 日記 (慶応4年-大正3年
 years = {}
 
 index = []
+
+sims = {} # getSims(files)
 
 for j in range(len(files)):
 
@@ -169,7 +262,9 @@ for j in range(len(files)):
                     "lvl1": title + " > " + title2
                 }
 
-                
+                id = item["objectID"]
+                if id in sims:
+                    item["texts"] = sims[id]
 
                 if i > 0:
                     item["prev"] = entries[i-1].get("xml:id")

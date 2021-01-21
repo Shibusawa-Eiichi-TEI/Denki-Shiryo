@@ -145,9 +145,7 @@
                 </v-treeview>
               </td>
             </tr>
-            <template
-              v-for="(tag, key) in ['agential', 'spatial' /*, 'temporal'*/]"
-            >
+            <template v-for="(tag, key) in fields">
               <tr v-if="item[tag].length > 0" :key="key">
                 <td width="30%">{{ $t(tag) }}</td>
                 <td style="overflow-wrap: break-word" class="py-5">
@@ -280,9 +278,11 @@
       </template>
 
       -->
+
+      <HorizontalItems :data="moreLikeThisData" />
     </v-container>
 
-    <v-sheet class="text-center pa-10">
+    <v-sheet class="text-center pa-10 mt-10">
       <small>
         <h3 class="mb-5">{{ $t('license') }}</h3>
 
@@ -318,10 +318,12 @@
 import * as algoliasearch from 'algoliasearch'
 import config from '@/plugins/algolia.config.js'
 import ResultOption from '~/components/display/ResultOption.vue'
+import HorizontalItems from '~/components/display/HorizontalItems.vue'
 
 export default {
   components: {
     ResultOption,
+    HorizontalItems,
   },
   async asyncData({ payload, app }) {
     if (payload) {
@@ -338,6 +340,8 @@ export default {
   data() {
     return {
       baseUrl: process.env.BASE_URL,
+      moreLikeThisData: [],
+      fields: ['agential', 'spatial' /*, 'temporal' */],
     }
   },
 
@@ -464,6 +468,50 @@ export default {
         },
       ]
     },
+  },
+
+  async created() {
+    const item = this.item
+
+    const es = []
+    const fields = this.fields
+    for (let i = 0; i < fields.length; i++) {
+      const field = fields[i]
+      const values = item[field]
+      for (let j = 0; j < values.length; j++) {
+        es.push(values[j])
+      }
+    }
+
+    const client = algoliasearch(config.appId, config.apiKey)
+    const index = client.initIndex('dev_MAIN')
+    const item2 = await index.search('', {
+      similarQuery: es.join(' '),
+    })
+
+    const arr = []
+    const hits = item2.hits
+    for (let i = 1; i < hits.length; i++) {
+      const hit = hits[i]
+      arr.push({
+        _id: hit.objectID,
+        _source: {
+          _label: [hit.label],
+          description: [
+            '<p><b>' +
+              this.$t('temporal') +
+              '</b>: ' +
+              hit.temporal +
+              '</p>' +
+              hit.xml,
+          ],
+          _thumbnail: [],
+          _url: [this.baseUrl + '/item/' + hit.objectID],
+        },
+      })
+    }
+
+    this.moreLikeThisData = arr
   },
 
   methods: {

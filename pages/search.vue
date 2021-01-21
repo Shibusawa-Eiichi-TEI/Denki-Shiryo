@@ -119,7 +119,7 @@
                       <p
                         class="mt-4"
                         v-html="
-                          removeHead(
+                          $utils.removeHead(
                             $utils.xml2html(item._highlightResult.xml.value)
                           )
                         "
@@ -280,13 +280,6 @@ export default {
           break
         }
       }
-    },
-    removeHead(data) {
-      data = data.replace(
-        '<p class="teiHead">',
-        '<p class="teiHead" style="display: none;">'
-      )
-      return data
     },
   },
 }
